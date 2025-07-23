@@ -126,8 +126,6 @@ func initApi() {
 
 	http.HandleFunc("/api/screenshot", handleScreenshot)
 
-	http.HandleFunc("/api/2kki", handle2kki)
-
 	http.HandleFunc("/api/explorer", handleExplorer)
 	http.HandleFunc("/api/explorercompletion", handleExplorerCompletion)
 	http.HandleFunc("/api/explorerlocations", handleExplorerLocations)
@@ -1230,7 +1228,7 @@ func handleExplorer(w http.ResponseWriter, r *http.Request) {
 	if client, ok := clients.Load(uuid); ok {
 		if client.roomC != nil {
 			var allConnLocationNames []string
-			retUrl := "https://2kki.app/location?locations="
+			retUrl := "https://explorer.yume.wiki/location?locations="
 
 			for i, locationName := range client.roomC.locations {
 				var connLocationNames []string
@@ -1240,7 +1238,7 @@ func handleExplorer(w http.ResponseWriter, r *http.Request) {
 				}
 				retUrl += url.QueryEscape(locationName)
 
-				getConnectionsUrl := "https://2kki.app/getConnectedLocations?locationName=" + url.QueryEscape(locationName)
+				getConnectionsUrl := "https://explorer.yume.wiki/getConnectedLocations?locationName=" + url.QueryEscape(locationName)
 				resp, err := http.Get(getConnectionsUrl)
 				if err != nil {
 					writeErrLog(getIp(r), r.URL.Path, err.Error())
@@ -1457,35 +1455,6 @@ func handleClearChatHistory(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("ok"))
 }
 
-func handle2kki(w http.ResponseWriter, r *http.Request) {
-	if config.gameName != "2kki" {
-		handleError(w, r, "endpoint not supported")
-		return
-	}
-
-	actionParam := r.URL.Query().Get("action")
-	if actionParam == "" {
-		handleError(w, r, "action not specified")
-		return
-	}
-
-	query := r.URL.Query()
-	query.Del("action")
-
-	queryString := query.Encode()
-
-	response, err := query2kki(actionParam, queryString)
-	if err != nil {
-		if response == "" {
-			handleInternalError(w, r, err)
-		} else {
-			writeErrLog(getIp(r), r.URL.Path, err.Error())
-		}
-	}
-
-	w.Write([]byte(response))
-}
-
 func handleInfo(w http.ResponseWriter, r *http.Request) {
 	var uuid string
 	var name string
@@ -1544,7 +1513,7 @@ func query2kki(action string, queryString string) (response string, err error) {
 			return "", err
 		}
 
-		url := "https://2kki.app/" + action
+		url := "https://explorer.yume.wiki/" + action
 		if queryString != "" {
 			url += "?" + queryString
 		}
