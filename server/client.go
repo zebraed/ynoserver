@@ -175,6 +175,10 @@ func (c *SessionClient) isPrivatedTo(other *SessionClient) bool {
 		(other.partyId == 0 || c.partyId != other.partyId) && !c.onlineFriends[other.uuid])
 }
 
+func (c *SessionClient) isBlockedWith(other *SessionClient) bool {
+	return c.blockedUsers[other.uuid] || other.blockedUsers[c.uuid]
+}
+
 // RoomClient
 type RoomClient struct {
 	room    *Room
@@ -342,6 +346,31 @@ func (m *SClientMap) Store(uuid string, client *SessionClient) {
 	m.clients[uuid] = client
 
 	m.mutex.Unlock()
+}
+
+func (m *SClientMap) nextFreeId() (id int) {
+	for i := 0; i < 0xFFFF; i++ {
+		var used bool
+		for _, client := range m.clients {
+			if client.id == i {
+				used = true
+			}
+		}
+
+		if !used {
+			id = i
+			break
+		}
+	}
+	return id
+}
+
+func (m *SClientMap) StoreAndSetId(uuid string, client *SessionClient) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	client.id = m.nextFreeId()
+	m.clients[uuid] = client
 }
 
 func (m *SClientMap) Load(uuid string) (*SessionClient, bool) {
