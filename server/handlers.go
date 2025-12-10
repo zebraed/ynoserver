@@ -468,7 +468,9 @@ func (c *RoomClient) handleP(msg []string) error {
 	pic.effectMode = effectMode
 	pic.effectPower = effectPower
 
-	c.pictures[id-1] = pic
+	if !pic.spritesheetPlayOnce {
+		c.pictures[id-1] = pic
+	}
 
 	c.broadcast(buildMsg(msg[0], c.session.id, msg[1:]))
 
@@ -805,6 +807,29 @@ func (c *RoomClient) handleSev(msg []string) error {
 	if exp > -1 {
 		c.session.outbox <- buildMsg("vm", exp)
 	}
+
+	return nil
+}
+
+const (
+	animStart = iota
+	animStop
+)
+
+func (c *RoomClient) handleAnc(msg []string) error {
+	if len(msg) != 2 {
+		return errors.New("segment count mismatch")
+	}
+
+	cmd, err := strconv.Atoi(msg[1])
+	if err != nil {
+		return err
+	}
+	if cmd > animStop || cmd < animStart {
+		return errors.New("invalid command")
+	}
+
+	c.broadcast(buildMsg("anc", cmd))
 
 	return nil
 }
@@ -1346,6 +1371,16 @@ func (c *SessionClient) handleHl(msg []string) error {
 	}
 
 	c.hideLocation = msg[1] == "1"
+
+	return nil
+}
+
+func (c *SessionClient) handleHunp(msg []string) error {
+	if len(msg) != 2 {
+		return errors.New("segment count mismatch")
+	}
+
+	c.hideUnnamedPlayers = msg[1] == "1"
 
 	return nil
 }
