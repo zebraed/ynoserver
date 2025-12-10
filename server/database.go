@@ -280,7 +280,11 @@ func tryChangePlayerUsername(senderUuid string, recipientUuid string, newUsernam
 
 func getPlayerMedals(uuid string) (medals [5]int) {
 	if client, ok := clients.Load(uuid); ok {
-		return client.medals // return medals from session if client is connected
+		select {
+		case <-client.ctx.Done(): // disconnecting, fetch from DB
+		default:
+			return client.medals
+		}
 	}
 
 	err := db.QueryRow("SELECT pgd.medalCountBronze, pgd.medalCountSilver, pgd.medalCountGold, pgd.medalCountPlatinum, pgd.medalCountDiamond FROM players pd LEFT JOIN playerGameData pgd ON pgd.uuid = pd.uuid WHERE pd.uuid = ? AND pgd.game = ?", uuid, config.gameName).Scan(&medals[0], &medals[1], &medals[2], &medals[3], &medals[4])
@@ -415,6 +419,15 @@ func getPlayerInfoFromToken(token string) (uuid string, name string, rank int, b
 
 func updatePlayerActivity() error {
 	_, err := db.Exec("UPDATE accounts SET inactive = CASE WHEN timestampLoggedIn IS NULL OR timestampLoggedIn < DATE_SUB(NOW(), INTERVAL 3 MONTH) THEN 1 ELSE 0 END")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func setActivePlayersOffline(game string) error {
+	_, err := db.Exec("UPDATE playerGameData SET online = 0 WHERE game = ? AND online = 1", game)
 	if err != nil {
 		return err
 	}
